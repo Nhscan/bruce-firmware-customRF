@@ -14,6 +14,7 @@
 #include "modules/rf/rf_weather_station.h"
 #include "modules/rf/rf_repeater.h"
 #include "modules/rf/rf_subghz.h"
+#include "modules/rf/rft/rft.h"
 #if !defined(LITE_VERSION) && !defined(DISABLE_INTERPRETER)
 #include "modules/bjs_interpreter/interpreter.h"
 #include "core/sd_functions.h"
@@ -35,6 +36,7 @@ static void launchBruceRfScript(const char *path) {
 void RFMenu::optionsMenu() {
     options = {
         {"SubGHZ",          rf_subghz                 },
+        {"RF Tools",        rf_tools_menu             },
         {"Scan/copy",       [=]() { RFScan(); }       },
         {"Weather Station", rf_weather_station        },
         {"Repeater",        rf_repeater               },

@@ -820,6 +820,12 @@ void frequency_analyzer() {
 
 } // namespace
 
+// Exported entry points used by the RF Tools umbrella menu, so it can reuse
+// the already-tested analyzer and Add Manually screens instead of
+// reimplementing them.
+void rf_frequency_analyzer() { frequency_analyzer(); }
+void rf_add_manually() { add_manually_menu(); }
+
 void rf_subghz() {
     bool back = false;
     while (!back) {

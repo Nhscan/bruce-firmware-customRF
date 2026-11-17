@@ -6,3 +6,7 @@
 // reused vs. genuinely new.
 #pragma once
 void rf_subghz();
+
+// Also used by the RF Tools menu (src/modules/rf/rft).
+void rf_frequency_analyzer();
+void rf_add_manually();

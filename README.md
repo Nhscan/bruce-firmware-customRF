@@ -43,6 +43,12 @@ Flipper-Zero-style Sub-GHz apps on top of stock Bruce's existing RF engine:
 - **Repeater** — capture a signal, auto-replay it (clean re-encode for
   recognized protocols, raw fallback otherwise), with full settings
   (frequency/BW/AGC/repeat count & delay/auto-repeat) and a live RSSI meter.
+- **RF Tools** — a native port of the Flipper RF Tools suite: Car Keys
+  (Honda V1 / Chrysler V0 / Kia V1 / Fiat V2 continuous decode, counter-aware
+  re-encode, RAW replay, `car_log.txt`), Key Info, Rolling Codes, Signal
+  Meter, Saved Signals, and a shared Radio Settings screen. See
+  [`RF_TOOLS.md`](RF_TOOLS.md) for the feature map, protocol notes, and the
+  host-side codec regression test.
 - **Weather Station** — decodes AcuRite-606TX/Nexus/Prologue sensors, tuned
   for weak/distant signals.
 - Larger RMT capture buffer (2048 symbols, up from 256) so longer frames —
