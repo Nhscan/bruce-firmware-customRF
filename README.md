@@ -49,8 +49,10 @@ Flipper-Zero-style Sub-GHz apps on top of stock Bruce's existing RF engine:
   Meter, Saved Signals, and a shared Radio Settings screen. See
   [`RF_TOOLS.md`](RF_TOOLS.md) for the feature map, protocol notes, and the
   host-side codec regression test.
-- **Weather Station** — decodes AcuRite-606TX/Nexus/Prologue sensors, tuned
-  for weak/distant signals.
+- **Weather Station** — native live decode for AcuRite-606TX, the AcuRite
+  TXR family (Tower/3n1/5n1/6045M/Atlas), Nexus/Nexus-TH, Prologue and
+  LaCrosse TX141TH-Bv2, plus an on-device **Decode .sub file** browser for
+  verifying Flipper captures. See [`WEATHER_STATION.md`](WEATHER_STATION.md).
 - Larger RMT capture buffer (2048 symbols, up from 256) so longer frames —
   e.g. automotive FSK keyless-entry signals — aren't silently truncated.
 
