@@ -55,6 +55,13 @@ Flipper-Zero-style Sub-GHz apps on top of stock Bruce's existing RF engine:
   verifying Flipper captures. See [`WEATHER_STATION.md`](WEATHER_STATION.md).
 - Larger RMT capture buffer (2048 symbols, up from 256) so longer frames —
   e.g. automotive FSK keyless-entry signals — aren't silently truncated.
+- **Nightly sync:** this branch is merged with upstream `dev` and also keeps
+  the native RF Tools / Weather Station suite.
+- **T-Embed partition note:** the combined nightly + RF Tools/Weather image is
+  larger than the stock 4.65 MB app slot, so `custom_16Mb.csv` now uses a
+  **4.85 MB** app partition (SPIFFS shrinks by 192 KB). Flashing a factory
+  image with this layout moves the SPIFFS offset, so internal LittleFS settings
+  reset once; files on the SD card are unaffected.
 
 ## :building_construction: How to install
 
