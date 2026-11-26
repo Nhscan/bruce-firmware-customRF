@@ -28,6 +28,8 @@ JsonDocument BruceConfig::toJson() const {
 #ifdef HAS_RGB_LED
     setting["ledBright"] = ledBright;
     setting["ledColor"] = String(ledColor, HEX);
+    setting["ledEnabled"] = ledEnabled;
+    setting["backLedEnabled"] = backLedEnabled;
     setting["ledBlinkEnabled"] = ledBlinkEnabled;
     setting["ledEffect"] = ledEffect;
     setting["ledEffectSpeed"] = ledEffectSpeed;
@@ -68,6 +70,7 @@ JsonDocument BruceConfig::toJson() const {
     setting["wdgwarsApiKey"] = wdgwarsApiKey;
     setting["devMode"] = devMode;
     setting["colorInverted"] = colorInverted;
+    setting["mainMenuStyle"] = mainMenuStyle;
 
     setting["badUSBBLEKeyboardLayout"] = badUSBBLEKeyboardLayout;
     setting["badUSBBLEKeyDelay"] = badUSBBLEKeyDelay;
@@ -232,6 +235,16 @@ void BruceConfig::fromFile(bool checkFS) {
         count++;
         log_e("Fail");
     }
+    if (!setting["ledEnabled"].isNull()) {
+        ledEnabled = setting["ledEnabled"].as<int>();
+    } else {
+        ledEnabled = 1; // configs saved before this field existed default to on
+    }
+    if (!setting["backLedEnabled"].isNull()) {
+        backLedEnabled = setting["backLedEnabled"].as<int>();
+    } else {
+        backLedEnabled = 1;
+    }
     if (!setting["ledBlinkEnabled"].isNull()) {
         ledBlinkEnabled = setting["ledBlinkEnabled"].as<int>();
     } else {
@@ -386,6 +399,12 @@ void BruceConfig::fromFile(bool checkFS) {
         count++;
         log_e("Fail");
     }
+    if (!setting["mainMenuStyle"].isNull()) {
+        mainMenuStyle = setting["mainMenuStyle"].as<int>();
+    } else {
+        count++;
+        log_e("Fail");
+    }
 
     if (!setting["badUSBBLEKeyboardLayout"].isNull()) {
         badUSBBLEKeyboardLayout = setting["badUSBBLEKeyboardLayout"].as<int>();
@@ -449,7 +468,6 @@ void BruceConfig::saveFile() {
     };
 
     // Serialize JSON to file
-    serializeJsonPretty(jsonDoc, Serial);
     if (serializeJsonPretty(jsonDoc, file) < 5) log_e("Failed to write config file");
     else log_i("config file written successfully");
 
@@ -483,6 +501,7 @@ void BruceConfig::validateConfig() {
     validateMifareKeysItems();
     validateDevModeValue();
     validateColorInverted();
+    validateMainMenuStyle();
     validateBadUSBBLEKeyboardLayout();
     validateBadUSBBLEKeyDelay();
     validateEvilEndpointCreds();
@@ -591,6 +610,17 @@ void BruceConfig::validateLedColorValue() {
     ledColor = max<uint32_t>(0, min<uint32_t>(0xFFFFFFFF, ledColor));
 }
 
+void BruceConfig::setLedEnabled(int value) {
+    ledEnabled = value;
+    validateLedEnabledValue();
+    saveFile();
+}
+
+void BruceConfig::validateLedEnabledValue() {
+    if (ledEnabled > 1) ledEnabled = 1;
+    if (ledEnabled < 0) ledEnabled = 0;
+}
+
 void BruceConfig::setLedBlinkEnabled(int value) {
     ledBlinkEnabled = value;
     validateLedBlinkEnabledValue();
@@ -665,6 +695,8 @@ String BruceConfig::getWifiPassword(const String &ssid) const {
     if (it != wifi.end()) return it->second;
     return "";
 }
+
+bool BruceConfig::hasWifiCredential(const String &ssid) const { return wifi.find(ssid) != wifi.end(); }
 
 void BruceConfig::addEvilWifiName(String value) {
     evilWifiNames.insert(value);
@@ -781,6 +813,17 @@ void BruceConfig::setColorInverted(int value) {
 
 void BruceConfig::validateColorInverted() {
     if (colorInverted > 1) colorInverted = 1;
+}
+
+void BruceConfig::setMainMenuStyle(int value) {
+    mainMenuStyle = value;
+    validateMainMenuStyle();
+    saveFile();
+}
+
+void BruceConfig::validateMainMenuStyle() {
+    if (mainMenuStyle < MAIN_MENU_CAROUSEL || mainMenuStyle > MAIN_MENU_GRID)
+        mainMenuStyle = MAIN_MENU_CAROUSEL;
 }
 
 void BruceConfig::setBadUSBBLEKeyboardLayout(int value) {

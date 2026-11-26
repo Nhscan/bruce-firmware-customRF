@@ -9,7 +9,17 @@
 #include <set>
 #include <vector>
 
+// Most panels want the framebuffer inverted; boards whose panel does not
+// (e.g. the LilyGO T4 ILI9341) can override this default from their build flags.
+#ifndef DEFAULT_COLOR_INVERTED
+#define DEFAULT_COLOR_INVERTED 1
+#endif
+
 enum EvilPortalPasswordMode { FULL_PASSWORD = 0, FIRST_LAST_CHAR = 1, HIDE_PASSWORD = 2, SAVE_LENGTH = 3 };
+
+// How the main menu presents the modules:
+// CAROUSEL shows one big icon at a time, GRID exposes every module as a selectable cell
+enum MainMenuStyle { MAIN_MENU_CAROUSEL = 0, MAIN_MENU_GRID = 1 };
 
 class BruceConfig : public BruceTheme {
 public:
@@ -52,6 +62,8 @@ public:
     // Led
     int ledBright = 50;
     uint32_t ledColor = 0x960064;
+    int ledEnabled = 1;
+    int backLedEnabled = 1; // REAPER: rear red LED rail (AW9523 IO_EXP_LOGO pin)
     int ledBlinkEnabled = 1;
     int ledEffect = 0;
     int ledEffectSpeed = 5;
@@ -86,7 +98,9 @@ public:
     String wigleBasicToken = "";
     String wdgwarsApiKey = "your 64-char hex key from wdgwars.pl/profile";
     int devMode = 0;
-    int colorInverted = 1;
+
+    int colorInverted = DEFAULT_COLOR_INVERTED;
+    int mainMenuStyle = MAIN_MENU_CAROUSEL;
     int badUSBBLEKeyboardLayout = 0;
     uint16_t badUSBBLEKeyDelay = 10;
     bool badUSBBLEShowOutput = true;
@@ -146,6 +160,8 @@ public:
     void validateLedBrightValue();
     void setLedColor(uint32_t value);
     void validateLedColorValue();
+    void setLedEnabled(int value);
+    void validateLedEnabledValue();
     void setLedBlinkEnabled(int value);
     void validateLedBlinkEnabledValue();
     void setLedEffect(int value);
@@ -164,6 +180,7 @@ public:
     void addQrCodeEntry(const String &menuName, const String &content);
     void removeQrCodeEntry(const String &menuName);
     String getWifiPassword(const String &ssid) const;
+    bool hasWifiCredential(const String &ssid) const;
     void addEvilWifiName(String value);
     void removeEvilWifiName(String value);
     void setEvilEndpointCreds(String value);
@@ -192,6 +209,8 @@ public:
     void validateDevModeValue();
     void setColorInverted(int value);
     void validateColorInverted();
+    void setMainMenuStyle(int value);
+    void validateMainMenuStyle();
     void setBadUSBBLEKeyboardLayout(int value);
     void validateBadUSBBLEKeyboardLayout();
     void setBadUSBBLEKeyDelay(uint16_t value);

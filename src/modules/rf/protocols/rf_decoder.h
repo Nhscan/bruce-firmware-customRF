@@ -39,7 +39,8 @@ class RfRxSession {
 public:
     // Create + enable the RMT RX channel (via setup_rf_rx) and arm a receive.
     // Returns false if the RF module / channel could not be initialised.
-    bool begin();
+    // An already configured radio must not be reset to the default OOK preset.
+    bool begin(bool radioReady = false, size_t captureSymbols = 256);
     // Non-blocking: when a signal has been captured, fills `durations` with the
     // signed pulse lengths (HIGH > 0, LOW < 0, µs), re-arms the receiver and
     // returns true. Returns false when nothing is ready yet.
@@ -47,23 +48,18 @@ public:
     // Disable + delete the channel and free the queue/buffer.
     void end();
     bool active() const { return _ch != nullptr || _m5Isr; }
+    bool bufferFull() const { return _bufferFull; }
     ~RfRxSession() { end(); }
 
 private:
     rmt_channel_handle_t _ch = nullptr;
     QueueHandle_t _queue = nullptr;
     bool _m5Isr = false;
-    // Heap-allocated capture buffer: keeping it off the (8KB) serialcmds task
-    // stack, where rfReceiveSignal runs, avoids stack overflow / corruption.
-    // Was 256 symbols (512 durations) -- confirmed too small for a real
-    // automotive FSK keyless-entry frame (2026-11-12): every capture of a
-    // Honda fob hit exactly 512 durations every time, consistently, meaning
-    // the real frame was silently truncated at the buffer limit rather than
-    // ending naturally on the protocol's own idle gap. 2048 symbols (4096
-    // durations) costs ~8KB heap, trivial on this chip (327KB RAM + 8MB
-    // PSRAM), with plenty of headroom for a longer rolling-code payload.
+    // Heap-allocated capture buffer. Normal RX uses 256 symbols; JS RAW RX can
+    // request up to 8192 symbols for long preambles and multiple bursts.
     rmt_symbol_word_t *_buf = nullptr;
-    static const size_t _bufSymbols = 2048;
+    size_t _bufSymbols = 256;
+    bool _bufferFull = false;
     void arm();
 };
 
@@ -73,7 +69,7 @@ void rf_symbols_to_durations(const rmt_symbol_word_t *symbols, size_t count, std
 // Try to decode an OOK frame from `durations` using the protocol registry.
 // On success fills out.key, out.Bit, out.te, out.protocol (registry name) and
 // out.preset (radio preset name) and returns true. Other fields are untouched.
-bool rf_decode_ook(const std::vector<int> &durations, RfCodes &out);
+bool rf_decode_ook(const std::vector<int> &durations, RfCodes &out, bool skipStream = false);
 
 // Try to decode a KeeLoq frame (dedicated PWM state machine: header + sync gap +
 // 64 PWM bits). On success sets out.key (raw 64-bit), out.Bit=64, out.te,
