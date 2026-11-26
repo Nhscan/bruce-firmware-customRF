@@ -76,6 +76,9 @@ void apply_preset() {
         return;
     }
     const bool ook650 = (g_preset == 1);
+    // These are modem/AGC registers; the CC1101 datasheet requires them to be
+    // written in IDLE, then the receiver re-entered.
+    ELECHOUSE_cc1101.setSidle();
     ELECHOUSE_cc1101.SpiWriteReg(CC1101_MDMCFG3, 0x32); // 3.79372 kBaud
     ELECHOUSE_cc1101.SpiWriteReg(CC1101_MDMCFG4, ook650 ? 0x17 : 0x67);
     ELECHOUSE_cc1101.SpiWriteReg(CC1101_FIFOTHR, 0x07);
@@ -83,6 +86,7 @@ void apply_preset() {
     ELECHOUSE_cc1101.SpiWriteReg(CC1101_AGCCTRL1, 0x00);
     ELECHOUSE_cc1101.SpiWriteReg(CC1101_AGCCTRL2, ook650 ? 0x07 : 0x03);
     ELECHOUSE_cc1101.SpiWriteReg(CC1101_FREND1, 0xB6);
+    ELECHOUSE_cc1101.SetRx();
 }
 
 void settings_load() {
