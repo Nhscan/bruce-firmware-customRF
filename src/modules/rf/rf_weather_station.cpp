@@ -551,6 +551,8 @@ void weather_live() {
     int rssi = -127;
     uint32_t lastDraw = 0;
     uint32_t lastHeartbeat = 0;
+    uint32_t lastDump = 0;
+    uint32_t lastDiag = 0;
 
     draw_weather_screen(stations, counts, rssi, attempts, true, true);
 
@@ -579,10 +581,12 @@ void weather_live() {
         std::vector<int> chunk;
         bool updated = false;
         if (rx.poll(chunk)) {
+            const uint32_t now = millis();
             attempts++;
             if (g_debug) {
                 Serial.printf("[Weather] poll %u durations\n", (unsigned)chunk.size());
-                if (chunk.size() >= 40) {
+                if (chunk.size() >= 40 && now - lastDump > 2000) {
+                    lastDump = now;
                     int pmin = 2000000, pmax = 0, nmin = 2000000, nmax = 0;
                     for (int v : chunk) {
                         if (v > 0) {
@@ -602,7 +606,7 @@ void weather_live() {
                         nmin,
                         nmax);
                     String line;
-                    const size_t limit = chunk.size() < 480 ? chunk.size() : 480;
+                    const size_t limit = chunk.size() < 48 ? chunk.size() : 48;
                     for (size_t i = 0; i < limit; i++) {
                         line += String(chunk[i]);
                         line += ' ';
@@ -635,7 +639,8 @@ void weather_live() {
                     st.hasHumidity ? st.humidity : -1,
                     st.battery ? 1 : 0);
                 updated = true;
-            } else if (g_debug) {
+            } else if (g_debug && now - lastDiag > 1000) {
+                lastDiag = now;
                 Serial.printf("[Weather] no decode: %s\n", weather_diagnose(window).c_str());
             }
 
@@ -670,6 +675,11 @@ void weather_live() {
 } // namespace
 
 void rf_weather_station() {
+#if defined(ARDUINO_USB_CDC_ON_BOOT) && ARDUINO_USB_CDC_ON_BOOT
+    // Never let a full USB-CDC TX buffer block the UI/weather loop. Without
+    // this, a debug build with no host reading can freeze the app mid-print.
+    Serial.setTxTimeoutMs(0);
+#endif
     settings_load();
 
     while (true) {
