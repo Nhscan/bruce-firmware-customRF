@@ -156,6 +156,7 @@ void draw_weather_screen(
 
     int barMax = 120;
     int barW = max(0, min(barMax, (int)((rssi + 100) * (barMax / 70.0f))));
+    tft.setTextSize(FP);
     tft.fillRect(10, 50, barMax + 2, 10, getColorVariation(bruceConfig.priColor));
     tft.fillRect(11, 51, barW, 8, bruceConfig.priColor);
     tft.fillRect(10 + barMax + 10, 50, tftWidth - (10 + barMax + 10) - 10, 10, bruceConfig.bgColor);
@@ -163,17 +164,27 @@ void draw_weather_screen(
     tft.print(rssi);
     tft.print(" dBm");
 
+    // Weather readings use a bright second colour and a larger font so they
+    // stand out from the system-coloured chrome/labels.
+    const uint16_t accent = TFT_ORANGE;
+
     int y = 68;
     tft.fillRect(10, y, tftWidth - 20, tftHeight - y - 24, bruceConfig.bgColor);
     if (stations.empty()) {
+        tft.setTextSize(FP);
         tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
         tft.setCursor(10, y);
         tft.print(listening ? "Listening... press anytime" : "No stations yet");
     } else {
-        const size_t visible = (size_t)max(1, (tftHeight - 56 - 24) / 34);
-        for (size_t i = 0; i < stations.size() && i < visible; i++) {
+        for (size_t i = 0; i < stations.size(); i++) {
             const auto &s = stations[i];
             const int count = (i < counts.size()) ? counts[i] : 1;
+            const bool hasExtra = s.hasWind || s.hasRain;
+            const int blockH = hasExtra ? 42 : 31;
+            if (y + blockH > tftHeight - 24) break;
+
+            // Label line: system colour, normal size.
+            tft.setTextSize(FP);
             tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
             tft.setCursor(10, y);
             tft.print(s.model);
@@ -183,13 +194,16 @@ void draw_weather_screen(
             tft.print(s.channel);
             tft.print(" x");
             tft.print(count);
-            y += 15;
+            tft.print(s.battery ? " BATT" : " LOW");
+            y += 11;
 
-            tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
+            // Main reading: bright orange, one size larger.
+            tft.setTextSize(FP + 1);
+            tft.setTextColor(accent, bruceConfig.bgColor);
             tft.setCursor(16, y);
             if (s.hasTemp) {
                 tft.print(s.tempC, 1);
-                tft.print("C/");
+                tft.print("C ");
                 tft.print(s.tempC * 9.0f / 5.0f + 32.0f, 1);
                 tft.print("F ");
             } else {
@@ -197,22 +211,30 @@ void draw_weather_screen(
             }
             if (s.hasHumidity) {
                 tft.print(s.humidity);
-                tft.print("%RH ");
+                tft.print("%RH");
             }
-            if (s.hasWind) {
-                tft.print("W:");
-                tft.print(s.windKph, 0);
-                tft.print("k ");
+            y += 18;
+
+            if (hasExtra) {
+                tft.setTextSize(FP);
+                tft.setTextColor(accent, bruceConfig.bgColor);
+                tft.setCursor(16, y);
+                if (s.hasWind) {
+                    tft.print("W:");
+                    tft.print(s.windKph, 0);
+                    tft.print("km/h ");
+                }
+                if (s.hasRain) {
+                    tft.print("R:");
+                    tft.print(s.rainMm, 1);
+                    tft.print("mm");
+                }
+                y += 11;
             }
-            if (s.hasRain) {
-                tft.print("R:");
-                tft.print(s.rainMm, 1);
-                tft.print("mm ");
-            }
-            tft.print(s.battery ? "BATT" : "LOW");
-            y += 19;
+            y += 2;
         }
     }
+    tft.setTextSize(FP);
     tft.fillRect(10, tftHeight - 24, tftWidth - 20, 16, bruceConfig.bgColor);
     tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
     tft.setCursor(10, tftHeight - 16);
@@ -560,6 +582,37 @@ void weather_live() {
             attempts++;
             if (g_debug) {
                 Serial.printf("[Weather] poll %u durations\n", (unsigned)chunk.size());
+                if (chunk.size() >= 40) {
+                    int pmin = 2000000, pmax = 0, nmin = 2000000, nmax = 0;
+                    for (int v : chunk) {
+                        if (v > 0) {
+                            if (v < pmin) pmin = v;
+                            if (v > pmax) pmax = v;
+                        } else {
+                            const int a = -v;
+                            if (a < nmin) nmin = a;
+                            if (a > nmax) nmax = a;
+                        }
+                    }
+                    Serial.printf(
+                        "[Weather] chunk=%u pos %d..%d neg %d..%d\n",
+                        (unsigned)chunk.size(),
+                        pmin,
+                        pmax,
+                        nmin,
+                        nmax);
+                    String line;
+                    const size_t limit = chunk.size() < 480 ? chunk.size() : 480;
+                    for (size_t i = 0; i < limit; i++) {
+                        line += String(chunk[i]);
+                        line += ' ';
+                        if ((i + 1) % 24 == 0) {
+                            Serial.printf("[Weather] d%03u: %s\n", (unsigned)(i - 23), line.c_str());
+                            line = "";
+                        }
+                    }
+                    if (line.length()) Serial.printf("[Weather] dtail: %s\n", line.c_str());
+                }
             }
 
             // Join this capture with the tail of the previous one so a frame
