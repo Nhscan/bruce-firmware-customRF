@@ -309,7 +309,7 @@ void log_decode(const RftFrame &frame, const String &savedPath) {
 
 bool reinit_rx(RfRxSession &rx, uint32_t *armedAt = nullptr) {
     bruceConfigPins.rfFreq = rftSettings.freq;
-    if (!rx.begin()) return false;
+    if (!rx.begin(false, 2048)) return false;
     ELECHOUSE_cc1101.setRxBW(rftSettings.bw);
     apply_agc(rftSettings.agc);
     if (armedAt) *armedAt = millis();

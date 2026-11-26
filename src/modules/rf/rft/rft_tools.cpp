@@ -32,7 +32,7 @@ void apply_agc_local(int agc) {
 
 bool begin_rx(RfRxSession &rx) {
     bruceConfigPins.rfFreq = rftSettings.freq;
-    if (!rx.begin()) return false;
+    if (!rx.begin(false, 2048)) return false;
     ELECHOUSE_cc1101.setRxBW(rftSettings.bw);
     apply_agc_local(rftSettings.agc);
     return true;

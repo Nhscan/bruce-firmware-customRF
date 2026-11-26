@@ -585,7 +585,7 @@ bool fa_capture_at(float foundFreq, std::vector<int> &durations, RfMatchKind &ki
     Serial.printf("[FreqAnalyzer] capture_at %.2f MHz: arming RX\n", foundFreq);
     bruceConfigPins.rfFreq = foundFreq;
     RfRxSession rx;
-    if (!rx.begin()) {
+    if (!rx.begin(false, 2048)) {
         Serial.println("[FreqAnalyzer] capture_at: rx.begin() failed");
         return false;
     }

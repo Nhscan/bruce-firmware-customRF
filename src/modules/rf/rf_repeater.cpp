@@ -93,7 +93,7 @@ bool reinit_rx(RfRxSession &rx) {
     // our bandwidth/AGC AFTER begin() so they're the last word, not
     // whatever that hidden init left behind.
     bruceConfigPins.rfFreq = g_freq;
-    if (!rx.begin()) return false;
+    if (!rx.begin(false, 2048)) return false;
     ELECHOUSE_cc1101.setRxBW(g_bw);
     apply_agc(g_agc);
     g_armedAtMs = millis();

@@ -536,7 +536,7 @@ void merge_station(
 void weather_live() {
     bruceConfigPins.rfFreq = g_freq;
     RfRxSession rx;
-    if (!rx.begin()) {
+    if (!rx.begin(false, 2048)) {
         displayError("RX session failed", true);
         return;
     }
@@ -564,7 +564,7 @@ void weather_live() {
                 rx.end();
                 deinitRfModule();
                 bruceConfigPins.rfFreq = g_freq;
-                if (!rx.begin()) {
+                if (!rx.begin(false, 2048)) {
                     displayError("CC1101 re-init failed", true);
                     return;
                 }
