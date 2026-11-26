@@ -33,6 +33,10 @@ float g_bw = 406.0f;
 // Nearby weather sensors are strong; Max Sensitivity overloads/distorts them.
 // It is still available in Settings for weak/distant sensors.
 int g_agc = 0;
+// 0 = Flipper OOK270 register set, 1 = Flipper OOK650 register set,
+// 2 = Manual (use g_bw/g_agc). The Flipper `.sub` preset matters: the short
+// AcuRite file is Ook270 and the long recordings are Ook650.
+int g_preset = 1;
 bool g_saveCaptures = false;
 bool g_debug = false;
 int g_saveIndex = 0;
@@ -54,6 +58,33 @@ void apply_agc(int agc) {
     else if (agc == 3) ELECHOUSE_cc1101.SpiWriteReg(CC1101_AGCCTRL2, 0x07);
 }
 
+const char *preset_label(int preset) {
+    switch (preset) {
+    case 0: return "Flipper OOK270";
+    case 1: return "Flipper OOK650";
+    default: return "Manual BW/AGC";
+    }
+}
+
+// Apply the matching Flipper CC1101 preset registers. The only differences
+// that matter for these RAW files are the RX filter (270 vs 650 kHz) and the
+// AGCCTRL0/2 gain profile.
+void apply_preset() {
+    if (g_preset == 2) {
+        ELECHOUSE_cc1101.setRxBW(g_bw);
+        apply_agc(g_agc);
+        return;
+    }
+    const bool ook650 = (g_preset == 1);
+    ELECHOUSE_cc1101.SpiWriteReg(CC1101_MDMCFG3, 0x32); // 3.79372 kBaud
+    ELECHOUSE_cc1101.SpiWriteReg(CC1101_MDMCFG4, ook650 ? 0x17 : 0x67);
+    ELECHOUSE_cc1101.SpiWriteReg(CC1101_FIFOTHR, 0x07);
+    ELECHOUSE_cc1101.SpiWriteReg(CC1101_AGCCTRL0, ook650 ? 0x91 : 0x40);
+    ELECHOUSE_cc1101.SpiWriteReg(CC1101_AGCCTRL1, 0x00);
+    ELECHOUSE_cc1101.SpiWriteReg(CC1101_AGCCTRL2, ook650 ? 0x07 : 0x03);
+    ELECHOUSE_cc1101.SpiWriteReg(CC1101_FREND1, 0xB6);
+}
+
 void settings_load() {
     FS *fs = nullptr;
     if (!getFsStorage(fs) || fs == nullptr) return;
@@ -71,6 +102,7 @@ void settings_load() {
         if (k == "freq") g_freq = v.toFloat();
         else if (k == "bw") g_bw = v.toFloat();
         else if (k == "agc") g_agc = v.toInt();
+        else if (k == "preset") g_preset = v.toInt();
         else if (k == "save") g_saveCaptures = v.toInt() != 0;
         else if (k == "debug") g_debug = v.toInt() != 0;
     }
@@ -87,6 +119,7 @@ void settings_save() {
     out += "freq=" + String(g_freq, 3) + "\n";
     out += "bw=" + String((int)g_bw) + "\n";
     out += "agc=" + String(g_agc) + "\n";
+    out += "preset=" + String(g_preset) + "\n";
     out += "save=" + String(g_saveCaptures ? 1 : 0) + "\n";
     out += "debug=" + String(g_debug ? 1 : 0) + "\n";
     f.write((const uint8_t *)out.c_str(), out.length());
@@ -434,6 +467,7 @@ void settings_menu() {
             {"Frequency: " + String(g_freq, 3) + " MHz", [&]() { option = 1; }},
             {"RX BW: " + String((int)g_bw) + " kHz",     [&]() { option = 2; }},
             {"AGC: " + String(agc_label(g_agc)),         [&]() { option = 3; }},
+            {"RX preset: " + String(preset_label(g_preset)), [&]() { option = 4; }},
             {"Save captures: " + String(g_saveCaptures ? "ON" : "OFF"),
              [&]() {
                  g_saveCaptures = !g_saveCaptures;
@@ -444,7 +478,7 @@ void settings_menu() {
                  g_debug = !g_debug;
                  settings_save();
              }},
-            {"Decode .sub file", [&]() { option = 4; }},
+            {"Decode .sub file", [&]() { option = 5; }},
             {"Back", [&]() { option = 0; }},
         };
         loopOptions(options, MENU_TYPE_SUBMENU, "Weather Settings");
@@ -506,6 +540,19 @@ void settings_menu() {
                 settings_save();
             }
         } else if (option == 4) {
+            int pick = -1;
+            options = {
+                {"Flipper OOK650 (long files)", [&]() { pick = 1; }},
+                {"Flipper OOK270 (short files)", [&]() { pick = 0; }},
+                {"Manual BW/AGC", [&]() { pick = 2; }},
+                {"Cancel", [&]() { pick = -1; }},
+            };
+            loopOptions(options);
+            if (pick >= 0) {
+                g_preset = pick;
+                settings_save();
+            }
+        } else if (option == 5) {
             decode_file_menu();
         }
     }
@@ -540,8 +587,7 @@ void weather_live() {
         displayError("RX session failed", true);
         return;
     }
-    ELECHOUSE_cc1101.setRxBW(g_bw);
-    apply_agc(g_agc);
+    apply_preset();
 
     std::vector<WeatherReading> stations;
     std::vector<int> counts;
@@ -561,8 +607,10 @@ void weather_live() {
             const float prevFreq = g_freq;
             const float prevBw = g_bw;
             const int prevAgc = g_agc;
+            const int prevPreset = g_preset;
             settings_menu();
-            if (g_freq != prevFreq || g_bw != prevBw || g_agc != prevAgc) {
+            if (g_freq != prevFreq || g_bw != prevBw || g_agc != prevAgc ||
+                g_preset != prevPreset) {
                 rx.end();
                 deinitRfModule();
                 bruceConfigPins.rfFreq = g_freq;
@@ -570,8 +618,7 @@ void weather_live() {
                     displayError("CC1101 re-init failed", true);
                     return;
                 }
-                ELECHOUSE_cc1101.setRxBW(g_bw);
-                apply_agc(g_agc);
+                apply_preset();
             }
             draw_weather_screen(stations, counts, rssi, attempts, true, true);
         }
